@@ -9,17 +9,23 @@ import WindSpeed from './components/WindSpeed';
 import SunsetTime from './components/SunsetTime';
 import Temperature from './components/Temperature';
 
+
 function App() {
-  let [city,setCity]=useState('')
-  let [wdetails,setWdetails]=useState()
-  let [cityName,setCityName]=useState('City')
-  let [cityTemp,setCityTemp]=useState('0')
-  let [country,setCountry]=useState("")
-  let [weatherman,setWeather]=useState('')
-  let [source,setSource]=useState('')
-  let [flagUrl, setFlagUrl] = useState(''); 
+  let [city, setCity] = useState('')
+  let [wdetails, setWdetails] = useState()
+  let [cityName, setCityName] = useState('City')
+  let [cityTemp, setCityTemp] = useState('0')
+  let [country, setCountry] = useState("")
+  let [weatherman, setWeather] = useState('')
+  let [source, setSource] = useState('')
+  let [flagUrl, setFlagUrl] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [localTime, setLocalTime] = useState('');
+
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+
+  let [hourlyTime, setHourlyTime] = useState();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -40,29 +46,42 @@ function App() {
   }, [wdetails]);
 
 
-  let getData=(event)=>{
+  let getData = (event) => {
     event.preventDefault()
     fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=751d66e130befad396405dc13796a57c`)
-    .then((res)=>res.json())
-    .then((finalRes)=>{
-      if(finalRes.cod=='404'){
-        setWdetails(finalRes)
-      }else{
-        setWdetails(finalRes)
-        setCityName(finalRes.name)
-        setCityTemp(finalRes.main.temp)
-        setCountry(finalRes.sys.country)
-        setWeather(finalRes.weather[0].description)
-        const iconCode = finalRes.weather[0].icon;
-        setSource(`https://openweathermap.org/img/wn/${iconCode}@2x.png`);
-        // / Set flag URL using country code (lowercase for flagcdn)
-        setFlagUrl(`https://flagcdn.com/64x48/${finalRes.sys.country.toLowerCase()}.png`);
-        
-        
-      }
-      console.log(country,weatherman,cityTemp,cityName);
-      console.log(finalRes);
-    })
+      .then((res) => res.json())
+      .then((finalRes) => {
+        if (finalRes.cod == '404') {
+          setWdetails(finalRes)
+        } else {
+          setWdetails(finalRes)
+          setCityName(finalRes.name)
+          setCityTemp(finalRes.main.temp)
+          setCountry(finalRes.sys.country)
+          setWeather(finalRes.weather[0].description)
+          const iconCode = finalRes.weather[0].icon;
+          setSource(`https://openweathermap.org/img/wn/${iconCode}@2x.png`);
+          setFlagUrl(`https://flagcdn.com/64x48/${finalRes.sys.country.toLowerCase()}.png`);
+          setLatitude(finalRes.coord.lat);
+          setLongitude(finalRes.coord.lon);
+
+          // Use lat/lon directly from API response for the next fetch
+          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${finalRes.coord.lat}&longitude=${finalRes.coord.lon}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m`)
+            .then((res2) => res2.json())
+            .then((hourly1) => {
+              setHourlyTime(hourly1)
+            })
+            .catch((err) => {
+              console.error("Error fetching open-meteo data:", err);
+            });
+        }
+        console.log(country, weatherman, cityTemp, cityName);
+        console.log(finalRes);
+
+      })
+      .catch((err) => {
+        console.error("Error fetching weather data:", err);
+      });
   }
 
   // Determine background based on weather
@@ -78,7 +97,29 @@ function App() {
     bgImage = 'default.jpg'; // fallback image
   }
 
+  // Helper to get first 8 hours after current time from hourlyTime
+  let hourlyForecast = [];
+  if (hourlyTime && hourlyTime.hourly && hourlyTime.hourly.time && hourlyTime.hourly.temperature_2m) {
+    // Find the index of the current hour or the next hour
+    const now = new Date();
+    const nowISO = now.toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
+    const idx = hourlyTime.hourly.time.findIndex(t => t.startsWith(nowISO));
+    // Get the next 8 hours (if available)
+    for (let i = idx + 1; i <= idx + 8 && i < hourlyTime.hourly.time.length; i++) {
+      hourlyForecast.push({
+        time: hourlyTime.hourly.time[i],
+        temp: hourlyTime.hourly.temperature_2m[i]
+      });
+    }
+  }
+
   return (
+    <div>
+
+      <h1 className='heading'>Simple Weather App</h1>
+      <div className="time" style={{ color: "wheat", textAlign: "center", marginBottom: "10px" }}>
+        Local Time: {localTime}
+      </div>
     <div
       className='page'
       style={{
@@ -88,35 +129,48 @@ function App() {
         backgroundPosition: "center",
         transition: "background-image 0.5s"
       }}
-    >
-      <h1 className='heading'>Simple Weather App</h1>
-      <div className="time" style={{ color: "wheat", textAlign: "center", marginBottom: "10px" }}>
-        Local Time: {localTime}
-      </div>
+      >
       <div className='containerpage'>
         <div className='iconContainer'>
-        <img className="icon" src={source} alt={country}></img>
+          <img className="icon" src={source} alt={country}></img>
         </div>
 
         <form onSubmit={getData}>
-          <input type='text' className='city' placeholder='Enter City' onChange={(event)=>{setCity(event.target.value)}} value={city}/> 
-          <button><FaSearch/></button>
+          <input type='text' className='city' placeholder='Enter City' onChange={(event) => { setCity(event.target.value) }} value={city} />
+          <button><FaSearch /></button>
         </form>
+        <div className='bodyContainer'>
 
         <div className='weather-container'>
-            <h2>
-              {cityName} <span>{flagUrl && <img src={flagUrl} alt="flag" />}</span>
-            </h2>
-            {/* Use the new components */}
-            {wdetails && wdetails.wind && <WindSpeed speed={wdetails.wind.speed} />}
-            {wdetails && wdetails.sys && <SunsetTime sunset={wdetails.sys.sunset} />}
-            {wdetails && wdetails.main && <Temperature kelvin={wdetails.main.temp} />}
-            <h1>{weatherman}</h1>
+          <h2 className='cityboy'>
+            {cityName} <span>{flagUrl && <img src={flagUrl} alt="flag" />}</span>
+          </h2>
+          {/* Use the new components */}
+          {wdetails && wdetails.wind && <WindSpeed speed={wdetails.wind.speed} />}
+          {wdetails && wdetails.sys && <SunsetTime sunset={wdetails.sys.sunset} />}
+          {wdetails && wdetails.main && <Temperature kelvin={wdetails.main.temp} />}
+          <h1>{weatherman}</h1>
+        </div>
+        {/* New container for next 8 hours forecast */}
         </div>
       </div>
-      <ReactSpeedometer/>
-      
+      {hourlyForecast.length > 0 && (
+        <div className="hourly-forecast" style={{ marginTop: "20px", background: "rgba(0,0,0,0.3)", borderRadius: "10px", padding: "10px" }}>
+            <h3 style={{ color: "wheat", marginBottom: "10px" }}>Next 8 Hours Forecast</h3>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
+              {hourlyForecast.map((h, i) => (
+                <div key={i} style={{ color: "white", minWidth: "80px", textAlign: "center" }}>
+                  <div>{new Date(h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  <div>{h.temp}°C</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <ReactSpeedometer />
     </div>
+  </div>
   );
 }
 
