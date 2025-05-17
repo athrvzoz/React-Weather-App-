@@ -113,49 +113,81 @@ function App() {
     }
   }
 
+  // Calculate hour from localTime or fallback to currentTime
+  let hour = 12;
+  if (localTime) {
+    // Try to parse hour from localTime string
+    const parts = localTime.split(':');
+    if (parts.length >= 2) {
+      hour = parseInt(parts[0], 10);
+      // Handle 12-hour format with AM/PM if needed
+      if (localTime.toLowerCase().includes('pm') && hour < 12) hour += 12;
+      if (localTime.toLowerCase().includes('am') && hour === 12) hour = 0;
+    }
+  } else {
+    hour = currentTime.getHours();
+  }
+
+  // Set blue shade based on hour
+  let bgColor = "#1e293b"; // default night
+  if (hour >= 6 && hour < 10) {
+    bgColor = "#3b82f6"; // morning blue
+  } else if (hour >= 10 && hour < 16) {
+    bgColor = "#60a5fa"; // day blue
+  } else if (hour >= 16 && hour < 19) {
+    bgColor = "#2563eb"; // evening blue
+  } else if (hour >= 19 || hour < 6) {
+    bgColor = "#1e293b"; // night blue
+  }
+
+  // Sync body background with bgColor
+  useEffect(() => {
+    document.body.style.background = `linear-gradient(${bgColor}, #111827)`;
+  }, [bgColor]);
+
   return (
     <div>
-
       <h1 className='heading'>Simple Weather App</h1>
       <div className="time" style={{ color: "wheat", textAlign: "center", marginBottom: "10px" }}>
         Local Time: {localTime}
       </div>
-    <div
-      className='page'
-      style={{
-        height: "100vh",
-        backgroundImage: `url(/${bgImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        transition: "background-image 0.5s"
-      }}
+      <div
+        className='page'
+        style={{
+          height: "100vh",
+          background: `linear-gradient(${bgColor}, #111827)`,
+          backgroundImage: `url(/${bgImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          transition: "background 0.5s, background-image 0.5s"
+        }}
       >
-      <div className='containerpage'>
-        <div className='iconContainer'>
-          <img className="icon" src={source} alt={country}></img>
-        </div>
+        <div className='containerpage'>
+          <div className='iconContainer'>
+            <img className="icon" src={source} alt={country}></img>
+          </div>
 
-        <form onSubmit={getData}>
-          <input type='text' className='city' placeholder='Enter City' onChange={(event) => { setCity(event.target.value) }} value={city} />
-          <button><FaSearch /></button>
-        </form>
-        <div className='bodyContainer'>
+          <form onSubmit={getData}>
+            <input type='text' className='city' placeholder='Enter City' onChange={(event) => { setCity(event.target.value) }} value={city} />
+            <button><FaSearch /></button>
+          </form>
+          <div className='bodyContainer'>
 
-        <div className='weather-container'>
-          <h2 className='cityboy'>
-            {cityName} <span>{flagUrl && <img src={flagUrl} alt="flag" />}</span>
-          </h2>
-          {/* Use the new components */}
-          {wdetails && wdetails.wind && <WindSpeed speed={wdetails.wind.speed} />}
-          {wdetails && wdetails.sys && <SunsetTime sunset={wdetails.sys.sunset} />}
-          {wdetails && wdetails.main && <Temperature kelvin={wdetails.main.temp} />}
-          <h1>{weatherman}</h1>
+            <div className='weather-container'>
+              <h2 className='cityboy'>
+                {cityName} <span>{flagUrl && <img src={flagUrl} alt="flag" />}</span>
+              </h2>
+              {/* Use the new components */}
+              {wdetails && wdetails.wind && <WindSpeed speed={wdetails.wind.speed} />}
+              {wdetails && wdetails.sys && <SunsetTime sunset={wdetails.sys.sunset} />}
+              {wdetails && wdetails.main && <Temperature kelvin={wdetails.main.temp} />}
+              <h1>{weatherman}</h1>
+            </div>
+            {/* New container for next 8 hours forecast */}
+          </div>
         </div>
-        {/* New container for next 8 hours forecast */}
-        </div>
-      </div>
-      {hourlyForecast.length > 0 && (
-        <div className="hourly-forecast" style={{ marginTop: "20px", background: "rgba(0,0,0,0.3)", borderRadius: "10px", padding: "10px" }}>
+        {hourlyForecast.length > 0 && (
+          <div className="hourly-forecast" style={{ marginTop: "20px", background: "rgba(0,0,0,0.3)", borderRadius: "10px", padding: "10px" }}>
             <h3 style={{ color: "wheat", marginBottom: "10px" }}>Next 8 Hours Forecast</h3>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
               {hourlyForecast.map((h, i) => (
@@ -168,9 +200,9 @@ function App() {
           </div>
         )}
 
-        <ReactSpeedometer />
+        {/* <ReactSpeedometer /> */}
+      </div>
     </div>
-  </div>
   );
 }
 
